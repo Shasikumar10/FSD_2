@@ -1,6 +1,6 @@
 const express = require("express");
 const authenticateUser = require("../middleware/authMiddleware");
-const Item = require("../models/Item");
+const Item = require("../models/itemModel");
 
 const router = express.Router();
 
@@ -18,7 +18,7 @@ router.post("/", authenticateUser, async (req, res) => {
       description,
       category,
       location,
-      user: req.user.id, // Logged-in user ID
+      user: req.user.id, // Attach user ID to item
     });
 
     await newItem.save();
@@ -31,7 +31,7 @@ router.post("/", authenticateUser, async (req, res) => {
 // Get All Lost/Found Items (Public Route)
 router.get("/", async (req, res) => {
   try {
-    const items = await Item.find().populate("user", "name email"); // Populate user details
+    const items = await Item.find().populate("user", "name email");
     res.status(200).json(items);
   } catch (err) {
     res.status(500).json({ message: "Error fetching items", error: err.message });
@@ -41,7 +41,7 @@ router.get("/", async (req, res) => {
 // Get Items Posted by Logged-in User (Protected Route)
 router.get("/my-items", authenticateUser, async (req, res) => {
   try {
-    const items = await Item.find({ user: req.user.id });
+    const items = await Item.find({ user: req.user.id }); // Corrected to use user.id
     res.status(200).json(items);
   } catch (err) {
     res.status(500).json({ message: "Error fetching user items", error: err.message });
@@ -58,12 +58,10 @@ router.put("/:id", authenticateUser, async (req, res) => {
       return res.status(404).json({ message: "Item not found" });
     }
 
-    // Check if the logged-in user is the owner
     if (item.user.toString() !== req.user.id) {
       return res.status(403).json({ message: "Unauthorized to update this item" });
     }
 
-    // Update fields if provided
     if (title) item.title = title;
     if (description) item.description = description;
     if (category) item.category = category;
@@ -85,7 +83,6 @@ router.delete("/:id", authenticateUser, async (req, res) => {
       return res.status(404).json({ message: "Item not found" });
     }
 
-    // Check if the logged-in user is the owner
     if (item.user.toString() !== req.user.id) {
       return res.status(403).json({ message: "Unauthorized to delete this item" });
     }
@@ -97,5 +94,21 @@ router.delete("/:id", authenticateUser, async (req, res) => {
   }
 });
 
-// Export the router AFTER defining all routes
+// ✅ Mark an Item as Found (Public Route)
+router.put("/mark-found/:id", async (req, res) => {
+  try {
+    const item = await Item.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ message: "Item not found" });
+    }
+
+    item.isFound = true;
+    await item.save();
+
+    res.json({ message: "Item marked as found", item });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error });
+  }
+});
+
 module.exports = router;
