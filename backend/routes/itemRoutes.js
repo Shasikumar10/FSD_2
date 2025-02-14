@@ -1,6 +1,7 @@
 const express = require("express");
 const authenticateUser = require("../middleware/authMiddleware");
-const Item = require("../models/itemModel");
+const sendEmail = require("../utils/sendEmail");
+const Item = require("../models/Item");
 
 const router = express.Router();
 
@@ -41,7 +42,7 @@ router.get("/", async (req, res) => {
 // Get Items Posted by Logged-in User (Protected Route)
 router.get("/my-items", authenticateUser, async (req, res) => {
   try {
-    const items = await Item.find({ user: req.user.id }); // Corrected to use user.id
+    const items = await Item.find({ user: req.user.id });
     res.status(200).json(items);
   } catch (err) {
     res.status(500).json({ message: "Error fetching user items", error: err.message });
@@ -94,20 +95,32 @@ router.delete("/:id", authenticateUser, async (req, res) => {
   }
 });
 
-// ✅ Mark an Item as Found (Public Route)
-router.put("/mark-found/:id", async (req, res) => {
+// ✅ Mark an Item as Found and Send Email (Protected Route)
+router.put("/:id/found", authenticateUser, async (req, res) => {
   try {
-    const item = await Item.findById(req.params.id);
+    const item = await Item.findById(req.params.id).populate("user", "email name");
+
     if (!item) {
       return res.status(404).json({ message: "Item not found" });
+    }
+
+    if (item.user._id.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Unauthorized" });
     }
 
     item.isFound = true;
     await item.save();
 
-    res.json({ message: "Item marked as found", item });
+    // Send email notification to the user
+    await sendEmail(
+      item.user.email,
+      "Your Lost Item is Found!",
+      `Hello ${item.user.name}, your lost item "${item.title}" has been found. Please check your Lost & Found account for details.`
+    );
+
+    res.json({ message: "Item marked as found and email sent", item });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 

@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { Container, Grid, Card, CardContent, Typography, CircularProgress, Button, TextField } from "@mui/material";
 import axios from "axios";
+import { io } from "socket.io-client";
+
+const socket = io("http://localhost:5000");
 
 function Home() {
   const [items, setItems] = useState([]);
@@ -22,7 +25,18 @@ function Home() {
         setLoading(false);
       }
     };
+
     fetchItems();
+
+    // Real-time updates using Socket.io
+    socket.on("updateItems", (newItem) => {
+      setItems((prevItems) => [newItem, ...prevItems]);
+      setFilteredItems((prevItems) => [newItem, ...prevItems]);
+    });
+
+    return () => {
+      socket.off("updateItems");
+    };
   }, []);
 
   // Filter items based on search query and location query
@@ -39,7 +53,8 @@ function Home() {
   const markAsFound = async (id) => {
     try {
       await axios.put(`http://localhost:5000/api/items/mark-found/${id}`);
-      setItems(items.map((item) => (item._id === id ? { ...item, isFound: true } : item)));
+      setItems((prevItems) => prevItems.map((item) => (item._id === id ? { ...item, isFound: true } : item)));
+      setFilteredItems((prevItems) => prevItems.map((item) => (item._id === id ? { ...item, isFound: true } : item)));
     } catch (error) {
       console.error("Error marking item as found:", error);
     }
@@ -80,7 +95,7 @@ function Home() {
                   <CardContent>
                     <Typography variant="h6">{item.name}</Typography>
                     <Typography>{item.description}</Typography>
-                    <Typography color="textSecondary">{item.location}</Typography>
+                    <Typography color="textSecondary">Location: {item.location}</Typography>
                     <Typography color="textSecondary">
                       Status: {item.isFound ? "Found" : "Lost"}
                     </Typography>

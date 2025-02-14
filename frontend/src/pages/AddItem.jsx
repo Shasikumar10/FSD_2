@@ -1,40 +1,30 @@
 import { useState } from "react";
 import { Container, TextField, Button, Typography } from "@mui/material";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { io } from "socket.io-client";
+
+const socket = io("http://localhost:5000");
 
 function AddItem() {
-  const [formData, setFormData] = useState({ name: "", description: "", location: "" });
-  const [error, setError] = useState("");
-  const navigate = useNavigate();
+  const [item, setItem] = useState({ name: "", description: "", location: "" });
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const handleSubmit = async () => {
+    const res = await axios.post("http://localhost:5000/api/items", item, {
+      headers: { Authorization: localStorage.getItem("token") },
+    });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const token = localStorage.getItem("token");
-      await axios.post("http://localhost:5000/api/items", formData, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      navigate("/");
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to add item");
-    }
+    socket.emit("newItem", res.data); // Send real-time update
+    alert("Item added successfully!");
+    setItem({ name: "", description: "", location: "" });
   };
 
   return (
-    <Container maxWidth="sm">
-      <Typography variant="h4" align="center" gutterBottom>Add Lost Item</Typography>
-      {error && <Typography color="error">{error}</Typography>}
-      <form onSubmit={handleSubmit}>
-        <TextField fullWidth label="Item Name" name="name" margin="normal" onChange={handleChange} required />
-        <TextField fullWidth label="Description" name="description" margin="normal" onChange={handleChange} required />
-        <TextField fullWidth label="Location" name="location" margin="normal" onChange={handleChange} required />
-        <Button fullWidth variant="contained" color="primary" type="submit">Submit</Button>
-      </form>
+    <Container>
+      <Typography variant="h4">Report Lost Item</Typography>
+      <TextField fullWidth label="Item Name" onChange={(e) => setItem({ ...item, name: e.target.value })} />
+      <TextField fullWidth label="Description" onChange={(e) => setItem({ ...item, description: e.target.value })} />
+      <TextField fullWidth label="Location" onChange={(e) => setItem({ ...item, location: e.target.value })} />
+      <Button variant="contained" onClick={handleSubmit}>Submit</Button>
     </Container>
   );
 }
