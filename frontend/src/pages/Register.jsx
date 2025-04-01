@@ -1,34 +1,67 @@
-import { useState } from "react";
-import { Container, TextField, Button, Typography, Box } from "@mui/material";
+import { useState, useContext } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import AuthContext from "../context/AuthContext";
 
 function Register() {
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const { login } = useContext(AuthContext);
+  const navigate = useNavigate();
 
-  const handleRegister = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (password !== confirmPassword) {
+      alert("Passwords do not match!");
+      return;
+    }
     try {
-      const res = await axios.post("http://localhost:5000/api/auth/register", { name, email, password });
-      localStorage.setItem("token", res.data.token);
-      window.location.href = "/login";
+      const response = await axios.post("http://localhost:5000/api/auth/register", { email, password });
+      login(email, password);
+      navigate("/dashboard");
     } catch (error) {
-      console.error("Registration failed:", error);
+      console.error("Registration failed:", error.response?.data?.message || error.message);
     }
   };
 
   return (
-    <Container>
-      <Box mt={5} textAlign="center">
-        <Typography variant="h4">Register</Typography>
-      </Box>
-      <TextField fullWidth margin="normal" label="Name" onChange={(e) => setName(e.target.value)} />
-      <TextField fullWidth margin="normal" label="Email" onChange={(e) => setEmail(e.target.value)} />
-      <TextField fullWidth margin="normal" label="Password" type="password" onChange={(e) => setPassword(e.target.value)} />
-      <Button variant="contained" color="primary" fullWidth onClick={handleRegister}>
-        Register
-      </Button>
-    </Container>
+    <div className="container mt-5">
+      <h2>Register</h2>
+      <form onSubmit={handleSubmit}>
+        <div className="mb-3">
+          <label>Email</label>
+          <input
+            type="email"
+            className="form-control"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+        <div className="mb-3">
+          <label>Password</label>
+          <input
+            type="password"
+            className="form-control"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
+        <div className="mb-3">
+          <label>Confirm Password</label>
+          <input
+            type="password"
+            className="form-control"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+          />
+        </div>
+        <button type="submit" className="btn btn-primary">Register</button>
+      </form>
+    </div>
   );
 }
 

@@ -1,31 +1,87 @@
-import { useState } from "react";
-import { Container, TextField, Button, Typography } from "@mui/material";
+import { useState, useContext } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { io } from "socket.io-client";
-
-const socket = io("http://localhost:5000");
+import AuthContext from "../context/AuthContext";
 
 function AddItem() {
-  const [item, setItem] = useState({ name: "", description: "", location: "" });
+  const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
+  
+  const [itemName, setItemName] = useState("");
+  const [description, setDescription] = useState("");
+  const [location, setLocation] = useState("");
+  const [category, setCategory] = useState("Lost"); // Default to "Lost"
 
-  const handleSubmit = async () => {
-    const res = await axios.post("http://localhost:5000/api/items", item, {
-      headers: { Authorization: localStorage.getItem("token") },
-    });
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!user) {
+      alert("You must be logged in to add an item.");
+      return;
+    }
 
-    socket.emit("newItem", res.data); // Send real-time update
-    alert("Item added successfully!");
-    setItem({ name: "", description: "", location: "" });
+    try {
+      await axios.post("http://localhost:5000/api/items", {
+        itemName,
+        description,
+        location,
+        category,
+        user: user.email,
+      });
+
+      alert("Item added successfully!");
+      navigate("/");
+    } catch (error) {
+      console.error("Error adding item:", error);
+    }
   };
 
   return (
-    <Container>
-      <Typography variant="h4">Report Lost Item</Typography>
-      <TextField fullWidth label="Item Name" onChange={(e) => setItem({ ...item, name: e.target.value })} />
-      <TextField fullWidth label="Description" onChange={(e) => setItem({ ...item, description: e.target.value })} />
-      <TextField fullWidth label="Location" onChange={(e) => setItem({ ...item, location: e.target.value })} />
-      <Button variant="contained" onClick={handleSubmit}>Submit</Button>
-    </Container>
+    <div className="container mt-5">
+      <h2>Report Lost or Found Item</h2>
+      <form onSubmit={handleSubmit}>
+        <div className="mb-3">
+          <label>Item Name</label>
+          <input
+            type="text"
+            className="form-control"
+            value={itemName}
+            onChange={(e) => setItemName(e.target.value)}
+            required
+          />
+        </div>
+        <div className="mb-3">
+          <label>Description</label>
+          <textarea
+            className="form-control"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            required
+          />
+        </div>
+        <div className="mb-3">
+          <label>Location</label>
+          <input
+            type="text"
+            className="form-control"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            required
+          />
+        </div>
+        <div className="mb-3">
+          <label>Category</label>
+          <select
+            className="form-select"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            <option value="Lost">Lost</option>
+            <option value="Found">Found</option>
+          </select>
+        </div>
+        <button type="submit" className="btn btn-primary">Submit</button>
+      </form>
+    </div>
   );
 }
 
